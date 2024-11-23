@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useAuth } from "@/src/hooks/useAuth";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
 import {
@@ -26,16 +26,77 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 
 const formSchema = z.object({
   role: z.string().min(1, "Por favor seleccione un rol"),
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Ingrese un email válido"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
-  phone: z.string().min(10, "Ingrese un número de teléfono válido"),
-  location: z.string().min(2, "La ubicación es requerida"),
-  specialty: z.string().min(2, "Por favor especifique su especialidad o necesidad"),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  email: z.string().email("Ingrese un email válido").max(100),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").max(50),
+  phone: z.string().min(8, "Ingrese un número de teléfono válido").max(20),
+  location: z.string().min(2, "La ubicación es requerida").max(100),
+  specialty: z.string().min(2, "Por favor especifique su especialidad o necesidad").max(200),
+  comments: z.string().max(500).optional(),
 });
+
+// Memoize InputTitle para evitar re-renders innecesarios
+const InputTitle = memo(({ title }: { title: string }) => (
+  <h3 className="text-sm font-medium text-gray-700 mb-2">{title}</h3>
+));
+InputTitle.displayName = 'InputTitle';
+
+// Memoize InputField component
+const InputField = memo(({ name, label, placeholder, type = "text", register, error }: { 
+  name: string, 
+  label: string, 
+  placeholder: string, 
+  type?: string,
+  register: any,
+  error?: string
+}) => (
+  <div className="space-y-2">
+    <InputTitle title={label} />
+    <FormItem>
+      <FormControl>
+        <Input 
+          {...register(name)}
+          type={type} 
+          placeholder={placeholder} 
+          className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus-visible:ring-blue-500 focus-visible:ring-1 focus-visible:border-blue-500 transition-colors" 
+          autoComplete={type === "password" ? "new-password" : "off"}
+          spellCheck={false}
+        />
+      </FormControl>
+      {error && <FormMessage className="text-xs mt-1 text-red-500">{error}</FormMessage>}
+    </FormItem>
+  </div>
+));
+InputField.displayName = 'InputField';
+
+// Memoize TextAreaField component
+const TextAreaField = memo(({ name, label, placeholder, register, error }: { 
+  name: string, 
+  label: string, 
+  placeholder: string,
+  register: any,
+  error?: string
+}) => (
+  <div className="space-y-2">
+    <InputTitle title={label} />
+    <FormItem>
+      <FormControl>
+        <textarea 
+          {...register(name)}
+          className="flex min-h-[100px] w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors resize-y"
+          placeholder={placeholder} 
+          maxLength={500}
+        />
+      </FormControl>
+      {error && <FormMessage className="text-xs mt-1 text-red-500">{error}</FormMessage>}
+    </FormItem>
+  </div>
+));
+TextAreaField.displayName = 'TextAreaField';
 
 export function RegisterForm() {
   const { signup } = useAuth() as { signup: (email: string, password: string) => Promise<any> };
@@ -52,10 +113,16 @@ export function RegisterForm() {
       phone: "",
       location: "",
       specialty: "",
+      comments: "",
     },
+    mode: "onBlur", // Cambiado de "onChange" a "onBlur"
   });
 
+  const { register, formState: { errors } } = form;
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (loading) return;
+    
     try {
       setError('');
       setLoading(true);
@@ -69,6 +136,7 @@ export function RegisterForm() {
         location: values.location,
         specialty: values.specialty,
         email: values.email,
+        comments: values.comments,
         createdAt: new Date().toISOString()
       });
       
@@ -99,18 +167,18 @@ export function RegisterForm() {
   }
 
   return (
-    <section className="py-20 bg-gradient-to-b from-green-50 to-white">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <section className="py-12 bg-gray-50">
+      <div className="container mx-auto px-4 max-w-2xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-10"
+          transition={{ duration: 0.6 }}
+          className="text-center mb-8"
         >
-          <h2 className="text-4xl font-bold text-green-600 mb-4">Pre-registro</h2>
-          <p className="text-gray-700 text-lg">
-            Complete el formulario para comenzar su experiencia con AgroConecta
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">¿Consultas?</h2>
+          <p className="text-gray-600 text-base">
+            Envianos un mensaje y te responderemos a la brevedad.
           </p>
         </motion.div>
 
@@ -118,134 +186,120 @@ export function RegisterForm() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="bg-white shadow-lg rounded-lg p-8"
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="bg-white shadow-sm border border-gray-100 rounded-xl p-6 md:p-8"
         >
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Select Role */}
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rol</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione su rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="worker">Trabajador</SelectItem>
-                        <SelectItem value="employer">Empleador</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <InputTitle title="Seleccione su rol" />
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger 
+                              className="bg-gray-50 border-gray-200 text-gray-900 focus:ring-blue-500 focus:ring-1 focus:border-blue-500"
+                            >
+                              <SelectValue 
+                                placeholder="Seleccione su rol" 
+                                className="text-gray-500"
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="worker" className="cursor-pointer hover:bg-gray-50">
+                              Trabajador
+                            </SelectItem>
+                            <SelectItem value="employer" className="cursor-pointer hover:bg-gray-50">
+                              Empleador
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-xs mt-1" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              {/* Name */}
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre Completo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Martin Fierro" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField 
+                    name="name" 
+                    label="Nombre Completo" 
+                    placeholder="Martin Fierro" 
+                    register={register}
+                    error={errors.name?.message}
+                  />
+                  <InputField 
+                    name="phone" 
+                    label="Teléfono" 
+                    placeholder="+54 9 11 1234-5678" 
+                    register={register}
+                    error={errors.phone?.message}
+                  />
+                </div>
 
-              {/* Phone */}
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+54 9 11 1234-5678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField 
+                    name="email" 
+                    label="Email" 
+                    placeholder="ejemplo@email.com" 
+                    type="email"
+                    register={register}
+                    error={errors.email?.message}
+                  />
+                  <InputField 
+                    name="password" 
+                    label="Contraseña" 
+                    placeholder="********" 
+                    type="password"
+                    register={register}
+                    error={errors.password?.message}
+                  />
+                </div>
 
-              {/* Email */}
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="ejemplo@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField 
+                    name="location" 
+                    label="Ubicación" 
+                    placeholder="Provincia, Localidad"
+                    register={register}
+                    error={errors.location?.message}
+                  />
+                  <InputField 
+                    name="specialty" 
+                    label="Especialidad/Necesidad" 
+                    placeholder="Ej: Operador de cosechadora"
+                    register={register}
+                    error={errors.specialty?.message}
+                  />
+                </div>
 
-              {/* Password */}
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contraseña</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="********" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <TextAreaField 
+                  name="comments" 
+                  label="Comentarios o Preguntas" 
+                  placeholder="Escribe aquí tus comentarios o preguntas adicionales..."
+                  register={register}
+                  error={errors.comments?.message}
+                />
+              </div>
 
-              {/* Location */}
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ubicación</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Provincia, Localidad" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Specialty */}
-              <FormField
-                control={form.control}
-                name="specialty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Especialidad/Necesidad</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ej: Operador de cosechadora, Busco personal para siembra"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
                 disabled={loading}
               >
-                {loading ? 'Registrando...' : 'Registrarse'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span> 
+                    Registrando...
+                  </span>
+                ) : (
+                  'Registrarse'
+                )}
               </Button>
             </form>
           </Form>

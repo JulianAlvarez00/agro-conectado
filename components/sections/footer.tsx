@@ -20,14 +20,14 @@ export function Footer() {
                 className="flex items-center space-x-2 text-white/80 hover:text-white"
               >
                 <Mail className="w-4 h-4" />
-                <span>info@agroconecta.com</span>
+                <span>julian.alvarez.ig@gmail.com</span>
               </a>
               <a
                 href="tel:+541112345678"
                 className="flex items-center space-x-2 text-white/80 hover:text-white"
               >
                 <Phone className="w-4 h-4" />
-                <span>+54 11 1234-5678</span>
+                <span>+54 9 11 3626-0707</span>
               </a>
             </div>
           </div>

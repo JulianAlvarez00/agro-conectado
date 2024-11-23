@@ -217,6 +217,9 @@ export function RegisterForm() {
                             <SelectItem value="employer" className="cursor-pointer hover:bg-gray-50">
                               Empleador
                             </SelectItem>
+                            <SelectItem value="contractor" className="cursor-pointer hover:bg-gray-50">
+                              Contratista
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage className="text-xs mt-1" />
@@ -298,7 +301,7 @@ export function RegisterForm() {
                     Registrando...
                   </span>
                 ) : (
-                  'Registrarse'
+                  'Enviar'
                 )}
               </Button>
             </form>

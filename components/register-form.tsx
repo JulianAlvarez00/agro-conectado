@@ -1,9 +1,14 @@
 "use client";
 
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/src/firebase/config.js';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { useAuth } from "@/src/hooks/useAuth";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from 'sonner';
 import {
   Form,
   FormControl,
@@ -25,43 +30,87 @@ import { motion } from "framer-motion";
 const formSchema = z.object({
   role: z.string().min(1, "Por favor seleccione un rol"),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  email: z.string().email("Ingrese un email válido"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
   phone: z.string().min(10, "Ingrese un número de teléfono válido"),
   location: z.string().min(2, "La ubicación es requerida"),
   specialty: z.string().min(2, "Por favor especifique su especialidad o necesidad"),
 });
 
 export function RegisterForm() {
+  const { signup } = useAuth() as { signup: (email: string, password: string) => Promise<any> };
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       role: "",
       name: "",
+      email: "",
+      password: "",
       phone: "",
       location: "",
       specialty: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Here you would typically send the data to your backend
-    alert("Gracias por registrarte! Te contactaremos pronto.");
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      setError('');
+      setLoading(true);
+      
+      const userCredential = await signup(values.email, values.password);
+      
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        role: values.role,
+        name: values.name,
+        phone: values.phone,
+        location: values.location,
+        specialty: values.specialty,
+        email: values.email,
+        createdAt: new Date().toISOString()
+      });
+      
+      toast.success('¡Registro exitoso!', {
+        description: 'Tu cuenta ha sido creada correctamente.'
+      });
+      
+      form.reset();
+    } catch (error: any) {
+      let errorMessage = 'Error al crear la cuenta. Por favor, intente nuevamente.';
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Este email ya está registrado';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'La contraseña es demasiado débil';
+      }
+      
+      toast.error('Error', {
+        description: errorMessage
+      });
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <section className="py-20 bg-[#F5F7F5]">
-      <div className="container mx-auto px-4 max-w-md">
+    <section className="py-20 bg-gradient-to-b from-green-50 to-white">
+      <div className="container mx-auto px-4 max-w-3xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-8"
+          className="text-center mb-10"
         >
-          <h2 className="text-3xl font-bold text-[#2E5B1E] mb-4">Pre-registro</h2>
-          <p className="text-gray-600">
-            Complete el formulario y nos pondremos en contacto con usted
+          <h2 className="text-4xl font-bold text-green-600 mb-4">Pre-registro</h2>
+          <p className="text-gray-700 text-lg">
+            Complete el formulario para comenzar su experiencia con AgroConecta
           </p>
         </motion.div>
 
@@ -70,9 +119,11 @@ export function RegisterForm() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.2 }}
+          className="bg-white shadow-lg rounded-lg p-8"
         >
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Select Role */}
               <FormField
                 control={form.control}
                 name="role"
@@ -95,6 +146,7 @@ export function RegisterForm() {
                 )}
               />
 
+              {/* Name */}
               <FormField
                 control={form.control}
                 name="name"
@@ -102,13 +154,14 @@ export function RegisterForm() {
                   <FormItem>
                     <FormLabel>Nombre Completo</FormLabel>
                     <FormControl>
-                      <Input placeholder="Juan Pérez" {...field} />
+                      <Input placeholder="Martin Fierro" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* Phone */}
               <FormField
                 control={form.control}
                 name="phone"
@@ -123,6 +176,37 @@ export function RegisterForm() {
                 )}
               />
 
+              {/* Email */}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="ejemplo@email.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Password */}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="********" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Location */}
               <FormField
                 control={form.control}
                 name="location"
@@ -137,6 +221,7 @@ export function RegisterForm() {
                 )}
               />
 
+              {/* Specialty */}
               <FormField
                 control={form.control}
                 name="specialty"
@@ -154,11 +239,13 @@ export function RegisterForm() {
                 )}
               />
 
+              {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-[#4A8C3B] hover:bg-[#2E5B1E] text-white"
+                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition"
+                disabled={loading}
               >
-                Enviar Pre-registro
+                {loading ? 'Registrando...' : 'Registrarse'}
               </Button>
             </form>
           </Form>
